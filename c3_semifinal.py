@@ -435,25 +435,22 @@ def generate_pdf(itinerary, destination, trip_details, attractions, itinerary_nu
             pdf.set_font("helvetica", "", 11)
             for line in lines:
                 line = clean_text(re.sub(r'\*\*(.*?)\*\*', r'\1', line))
-                try:
-                    if '<a href="' in line:
-                        parts = line.split('<a href="')
-                        for i, part in enumerate(parts):
-                            if i == 0:
-                                pdf.multi_cell(0, 8, clean_text(part))
-                            else:
-                                url_part, rest = part.split('">', 1)
-                                text_part, remainder = rest.split('</a>', 1)
-                                pdf.set_text_color(0, 0, 255)
-                                pdf.multi_cell(0, 8, clean_text(text_part), link=url_part)
-                                pdf.set_text_color(0, 0, 0)
-                                pdf.multi_cell(0, 8, clean_text(remainder))
-                    elif line.startswith("- "):
-                        pdf.multi_cell(0, 8, clean_text(f"- {line.lstrip('- ').strip()}"))
-                    else:
-                        pdf.multi_cell(0, 8, clean_text(line.strip()))
-                except Exception:
-                    continue
+                if '<a href="' in line:
+                    parts = line.split('<a href="')
+                    for i, part in enumerate(parts):
+                        if i == 0:
+                            pdf.multi_cell(0, 8, clean_text(part))
+                        else:
+                            url_part, rest = part.split('">', 1)
+                            text_part, remainder = rest.split('</a>', 1)
+                            pdf.set_text_color(0, 0, 255)
+                            pdf.multi_cell(0, 8, clean_text(text_part), link=url_part)
+                            pdf.set_text_color(0, 0, 0)
+                            pdf.multi_cell(0, 8, clean_text(remainder))
+                elif line.startswith("- "):
+                    pdf.multi_cell(0, 8, clean_text(f"- {line.lstrip('- ').strip()}"))
+                else:
+                    pdf.multi_cell(0, 8, clean_text(line.strip()))
                     
             pdf.ln(5)
 
