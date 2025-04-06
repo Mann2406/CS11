@@ -315,123 +315,151 @@ def get_youtube_links(query):
     except:
         return ""
 
-# Generate PDF
 def generate_pdf(itinerary, destination, trip_details, attractions, itinerary_number=1):
     class UnicodePDF(FPDF):
         def header(self):
-            self.set_font("Arial", "B", 20)
+            self.set_font("helvetica", "B", 20)
             self.set_text_color(0, 0, 0)
             self.set_xy(10, 10)
-            self.cell(0, 10, f"Travel Itinerary {itinerary_number}: {destination}", 0, 1, "C")
+            self.cell(0, 10, f"Travel Itinerary {itinerary_number}: {destination}", 
+                     new_x="LMARGIN", new_y="NEXT", align="C")
 
         def footer(self):
             self.set_y(-15)
-            self.set_font("Arial", "I", 8)
+            self.set_font("helvetica", "I", 8)
             self.set_text_color(100, 100, 100)
-            self.cell(0, 10, f"Page {self.page_no()} | Generated on {datetime.now().strftime('%Y-%m-%d')}", 0, 0, "C")
+            self.cell(0, 10, f"Page {self.page_no()} | Generated on {datetime.now().strftime('%Y-%m-%d')}", 
+                     new_x="RIGHT", new_y="TOP", align="C")
 
     pdf = UnicodePDF()
     pdf.set_auto_page_break(auto=True, margin=15)
-    city_images = get_unsplash_images(destination, count=5)
     
-    if city_images:
-        pdf.add_page()
-        try:
-            response = requests.get(city_images[0], timeout=5)
-            img = Image.open(io.BytesIO(response.content))
-            img_path = os.path.join(tempfile.gettempdir(), f"cover_{destination}_{itinerary_number}.jpg")
-            img.save(img_path)
-            pdf.image(img_path, x=(210-190)/2, y=30, w=190)
-            pdf.set_font("Arial", "I", 12)
-            pdf.set_xy(10, 100)
-            pdf.set_text_color(0, 51, 102)
-            pdf.cell(0, 10, "A Journey Awaits", 0, 1, "C")
-            os.remove(img_path)
-        except:
-            pass
-    
-    pdf.add_page()
-    pdf.set_font("Arial", "B", 16)
-    pdf.cell(0, 10, "Trip Overview", 0, 1)
-    pdf.set_font("Arial", "", 11)
-    pdf.cell(0, 8, f"Duration: {trip_details['duration']} days", 0, 1)
-    pdf.cell(0, 8, f"Dates: {trip_details['departure_date']} to {trip_details['return_date']}", 0, 1)
-    pdf.cell(0, 8, f"Budget: ${trip_details['budget']}", 0, 1)
-    pdf.cell(0, 8, f"Interests: {trip_details['interests']}", 0, 1)
-    
-    if attractions:
-        pdf.add_page()
-        pdf.set_font("Arial", "B", 16)
-        pdf.cell(0, 10, "Recommended Attractions", 0, 1)
-        for attraction in attractions[:5]:
-            pdf.set_font("Arial", "B", 12)
-            pdf.cell(0, 8, attraction['name'], 0, 1)
-            pdf.set_font("Arial", "", 10)
-            pdf.cell(0, 6, f"Type: {attraction['type']} | Rating: {attraction['rating']}", 0, 1)
-            pdf.cell(0, 6, f"Address: {attraction['address']}", 0, 1)
-            if attraction.get('google_url'):
-                pdf.set_text_color(0, 0, 255)
-                pdf.cell(0, 6, "Google Maps", ln=1, link=attraction['google_url'])
-                pdf.set_text_color(0, 0, 0)
-            pdf.ln(8)
+    def clean_text(text):
+        text = re.sub(r'[^\x00-\x7F]+', ' ', text)
+        text = re.sub(r'\s+', ' ', text)
+        return text.strip()
 
-    pdf.add_page()
-    pdf.set_font("Arial", "B", 16)
-    pdf.cell(0, 10, f"Your Personalized Itinerary {itinerary_number}", 0, 1)
-    
-    clean_itinerary = unicodedata.normalize('NFKD', itinerary).encode('ascii', 'ignore').decode('ascii')
-    paragraphs = clean_itinerary.split('\n\n')
-    image_index = 1
-
-    for para in paragraphs:
-        if not para.strip():
-            continue
-        lines = para.strip().split('\n')
-        if lines and "Day" in lines[0]:
-            day_title = re.sub(r'\*\*(.*?)\*\*', r'\1', lines[0]).strip()
-            pdf.set_font("Arial", "B", 13)
-            pdf.cell(0, 10, day_title, 0, 1)
-            if image_index < len(city_images) and pdf.get_y() + 60 < pdf.h - 15:
-                try:
-                    response = requests.get(city_images[image_index], timeout=5)
-                    img = Image.open(io.BytesIO(response.content))
-                    img_path = os.path.join(tempfile.gettempdir(), f"day_{image_index}_{itinerary_number}.jpg")
-                    img.save(img_path)
-                    pdf.image(img_path, x=(210-60)/2, w=60, h=60)
-                    pdf.set_font("Arial", "I", 8)
-                    pdf.cell(0, 5, f"Scene {image_index}: {destination}", 0, 1, "C")
-                    os.remove(img_path)
-                    image_index += 1
-                except:
-                    pass
-            lines = lines[1:]
+    try:
+        city_images = get_unsplash_images(destination, count=5)
         
-        pdf.set_font("Arial", "", 11)
-        for line in lines:
-            line = re.sub(r'\*\*(.*?)\*\*', r'\1', line).strip()
-            if '<a href="' in line:
-                parts = line.split('<a href="')
-                for i, part in enumerate(parts):
-                    if i == 0:
-                        pdf.multi_cell(0, 8, part, 0, 0)
-                    else:
-                        url, rest = part.split('">')
-                        text, remainder = rest.split('</a>')
-                        pdf.set_text_color(0, 0, 255)
-                        pdf.multi_cell(0, 8, text, 0, 0, link=url)
-                        pdf.set_text_color(0, 0, 0)
-                        pdf.multi_cell(0, 8, remainder, 0, 0)
-                pdf.ln(8)
-            elif line.startswith("- "):
-                pdf.multi_cell(0, 8, f"- {line.lstrip('- ').strip()}", 0, 1)
-            else:
-                pdf.multi_cell(0, 8, line.strip(), 0, 1)
-        pdf.ln(5)
+        # Cover Page
+        if city_images:
+            pdf.add_page()
+            try:
+                response = requests.get(city_images[0], timeout=10)
+                img = Image.open(io.BytesIO(response.content))
+                img_path = os.path.join(tempfile.gettempdir(), f"cover_{destination}_{itinerary_number}.jpg")
+                img.save(img_path)
+                pdf.image(img_path, x=(210-190)/2, y=30, w=190)
+                pdf.set_font("helvetica", "I", 12)
+                pdf.set_xy(10, 100)
+                pdf.set_text_color(0, 51, 102)
+                pdf.cell(0, 10, "A Journey Awaits", new_x="LMARGIN", new_y="NEXT", align="C")
+                os.remove(img_path)
+            except Exception:
+                pass
 
-    with tempfile.NamedTemporaryFile(delete=False, suffix=f"_itinerary_{itinerary_number}.pdf") as temp_file:
-        pdf_path = temp_file.name
-        pdf.output(pdf_path)
-    return pdf_path
+        # Trip Details
+        pdf.add_page()
+        pdf.set_font("helvetica", "B", 16)
+        pdf.cell(0, 10, "Trip Overview", new_x="LMARGIN", new_y="NEXT")
+        pdf.set_font("helvetica", "", 11)
+        pdf.cell(0, 8, f"Duration: {trip_details['duration']} days", new_x="LMARGIN", new_y="NEXT")
+        pdf.cell(0, 8, f"Dates: {trip_details['departure_date']} to {trip_details['return_date']}", 
+                 new_x="LMARGIN", new_y="NEXT")
+        pdf.cell(0, 8, f"Budget: ${trip_details['budget']}", new_x="LMARGIN", new_y="NEXT")
+        pdf.cell(0, 8, f"Interests: {clean_text(trip_details['interests'])}", 
+                 new_x="LMARGIN", new_y="NEXT")
+        
+        # Attractions
+        if attractions:
+            pdf.add_page()
+            pdf.set_font("helvetica", "B", 16)
+            pdf.cell(0, 10, "Recommended Attractions", new_x="LMARGIN", new_y="NEXT")
+            for attraction in attractions[:5]:
+                pdf.set_font("helvetica", "B", 12)
+                pdf.cell(0, 8, clean_text(attraction['name']), new_x="LMARGIN", new_y="NEXT")
+                pdf.set_font("helvetica", "", 10)
+                pdf.cell(0, 6, clean_text(f"Type: {attraction['type']} | Rating: {attraction['rating']}"), 
+                         new_x="LMARGIN", new_y="NEXT")
+                pdf.cell(0, 6, clean_text(f"Address: {attraction['address']}"), 
+                         new_x="LMARGIN", new_y="NEXT")
+                if attraction.get('google_url'):
+                    pdf.set_text_color(0, 0, 255)
+                    pdf.cell(0, 6, "Google Maps", new_x="LMARGIN", new_y="NEXT", 
+                             link=attraction['google_url'])
+                    pdf.set_text_color(0, 0, 0)
+                pdf.ln(8)
+
+        # Itinerary
+        pdf.add_page()
+        pdf.set_font("helvetica", "B", 16)
+        pdf.cell(0, 10, f"Your Personalized Itinerary {itinerary_number}", 
+                 new_x="LMARGIN", new_y="NEXT")
+        
+        clean_itinerary = unicodedata.normalize('NFKD', itinerary).encode('ascii', 'ignore').decode('ascii')
+        paragraphs = [p for p in clean_itinerary.split('\n\n') if p.strip()]
+        
+        image_index = 1
+        for para in paragraphs:
+            if not para.strip():
+                continue
+                
+            lines = [clean_text(line) for line in para.strip().split('\n') if line.strip()]
+            if not lines:
+                continue
+                
+            if "Day" in lines[0]:
+                day_title = re.sub(r'\*\*(.*?)\*\*', r'\1', lines[0]).strip()
+                pdf.set_font("helvetica", "B", 13)
+                pdf.cell(0, 10, clean_text(day_title), new_x="LMARGIN", new_y="NEXT")
+                
+                if image_index < len(city_images) and pdf.get_y() + 60 < pdf.h - 15:
+                    try:
+                        response = requests.get(city_images[image_index], timeout=10)
+                        img = Image.open(io.BytesIO(response.content))
+                        img_path = os.path.join(tempfile.gettempdir(), f"day_{image_index}_{itinerary_number}.jpg")
+                        img.save(img_path)
+                        pdf.image(img_path, x=(210-60)/2, w=60, h=60)
+                        pdf.set_font("helvetica", "I", 8)
+                        pdf.cell(0, 5, clean_text(f"Scene {image_index}: {destination}"), 
+                                 new_x="LMARGIN", new_y="NEXT", align="C")
+                        os.remove(img_path)
+                        image_index += 1
+                    except Exception:
+                        pass
+                
+                lines = lines[1:]
+            
+            pdf.set_font("helvetica", "", 11)
+            for line in lines:
+                line = clean_text(re.sub(r'\*\*(.*?)\*\*', r'\1', line))
+                if '<a href="' in line:
+                    parts = line.split('<a href="')
+                    for i, part in enumerate(parts):
+                        if i == 0:
+                            pdf.multi_cell(0, 8, clean_text(part))
+                        else:
+                            url_part, rest = part.split('">', 1)
+                            text_part, remainder = rest.split('</a>', 1)
+                            pdf.set_text_color(0, 0, 255)
+                            pdf.multi_cell(0, 8, clean_text(text_part), link=url_part)
+                            pdf.set_text_color(0, 0, 0)
+                            pdf.multi_cell(0, 8, clean_text(remainder))
+                elif line.startswith("- "):
+                    pdf.multi_cell(0, 8, clean_text(f"- {line.lstrip('- ').strip()}"))
+                else:
+                    pdf.multi_cell(0, 8, clean_text(line.strip()))
+                    
+            pdf.ln(5)
+
+        with tempfile.NamedTemporaryFile(delete=False, suffix=f"_itinerary_{itinerary_number}.pdf") as temp_file:
+            pdf_path = temp_file.name
+            pdf.output(pdf_path)
+        return pdf_path
+        
+    except Exception:
+        return None
 
 # Chat Chain
 def initialize_chat_chain():
