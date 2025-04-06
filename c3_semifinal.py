@@ -446,8 +446,7 @@ def generate_pdf(itinerary, destination, trip_details, attractions, itinerary_nu
                         pdf.multi_cell(0, 8, clean_text(f"- {line.lstrip('- ').strip()}"))
                     else:
                         pdf.multi_cell(0, 8, clean_text(line.strip()))
-                except Exception as e:
-                    st.warning(f"Couldn't add line: {line[:50]}... Error: {str(e)}")
+                except Exception:
                     continue
                     
             pdf.ln(5)
