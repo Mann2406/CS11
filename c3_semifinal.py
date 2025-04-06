@@ -509,26 +509,35 @@ def speak(text):
     except:
         pass
 
-# Voice Command
 def get_voice_input():
-    recognizer = sr.Recognizer()
-    with sr.Microphone() as source:
-        st.info("Listening... Speak now.")
-        recognizer.adjust_for_ambient_noise(source, duration=1)
-        audio = recognizer.listen(source, timeout=5)
     try:
-        text = recognizer.recognize_google(audio)
-        st.success(f"You said: {text}")
-        return text
-    except sr.UnknownValueError:
-        st.warning("Could not understand audio.")
-        return None
-    except sr.RequestError as e:
-        st.warning(f"Speech recognition error: {str(e)}")
+        # Check if we're running in Streamlit Cloud
+        if os.environ.get('IS_STREAMLIT_CLOUD', 'false').lower() == 'true':
+            st.warning("Voice input is not available in Streamlit Cloud. Please use text input.")
+            return None
+            
+        recognizer = sr.Recognizer()
+        with sr.Microphone() as source:
+            st.info("Listening... Speak now.")
+            recognizer.adjust_for_ambient_noise(source, duration=1)
+            audio = recognizer.listen(source, timeout=5)
+        try:
+            text = recognizer.recognize_google(audio)
+            st.success(f"You said: {text}")
+            return text
+        except sr.UnknownValueError:
+            st.warning("Could not understand audio.")
+            return None
+        except sr.RequestError as e:
+            st.warning(f"Speech recognition error: {str(e)}")
+            return None
+    except AttributeError:
+        st.warning("PyAudio not available. Please install it with: pip install pyaudio")
         return None
     except Exception as e:
         st.warning(f"Error during voice input: {str(e)}")
         return None
+
 
 # Parse Itinerary for Map with Random Flow
 def parse_itinerary_for_map(itinerary, destination, memory):
@@ -611,7 +620,6 @@ if "chat_chain" not in st.session_state:
     st.session_state["pdf_paths"] = []
     st.session_state["attractions"] = []
 
-# Main App
 def main():
     # Hero Section
     col1, col2 = st.columns([2, 1])
@@ -626,6 +634,16 @@ def main():
     with col2:
         if lottie_travel:
             st_lottie(lottie_travel, height=200, key="travel")
+
+    # Initialize session state variables if they don't exist
+    if "trip_details" not in st.session_state:
+        st.session_state["trip_details"] = {}
+    if "itineraries" not in st.session_state:
+        st.session_state["itineraries"] = []
+    if "pdf_paths" not in st.session_state:
+        st.session_state["pdf_paths"] = []
+    if "attractions" not in st.session_state:
+        st.session_state["attractions"] = []
 
     # Main Container
     with st.container():
@@ -860,6 +878,7 @@ def main():
                             st.image(attraction['photo_url'], width=150)
 
             # Travel Assistant
+            # Travel Assistant
             st.markdown("### Travel Assistant")
             st.markdown("Ask questions or request changes to your itinerary")
             
@@ -888,13 +907,19 @@ def main():
                 if st.button("Send", use_container_width=True) and user_input:
                     st.session_state["travel_chat"].append({"role": "user", "content": user_input})
                     with st.spinner("Thinking..."):
-                        weather_str = ", ".join([f"{w['date']}: {w['description']}, {w['temp']}°C" for w in st.session_state["trip_details"].get("weather", [])]) if st.session_state["trip_details"].get("weather") else "Weather data not available"
+                        # Safely get weather info
+                        weather_info = st.session_state["trip_details"].get("weather", [])
+                        weather_str = ", ".join([f"{w['date']}: {w['description']}, {w['temp']}°C" for w in weather_info]) if weather_info else "Weather data not available"
+                        
+                        # Safely get destination
+                        current_destination = st.session_state["trip_details"].get("destination", "your destination")
+                        
                         context = f"""
                         Current itinerary details:
-                        Destination: {st.session_state["trip_details"]["destination"]}
-                        Dates: {st.session_state["trip_details"]["departure_date"]} to {st.session_state["trip_details"]["return_date"]}
-                        Budget: ${st.session_state["trip_details"]["budget"]}
-                        Interests: {st.session_state["trip_details"]["interests"]}
+                        Destination: {current_destination}
+                        Dates: {st.session_state["trip_details"].get("departure_date", "N/A")} to {st.session_state["trip_details"].get("return_date", "N/A")}
+                        Budget: ${st.session_state["trip_details"].get("budget", "N/A")}
+                        Interests: {st.session_state["trip_details"].get("interests", "N/A")}
                         Special Requests: {st.session_state["trip_details"].get("special_requests", "None")}
                         Weather: {weather_str}
                         
@@ -909,13 +934,18 @@ def main():
                     if voice_input:
                         st.session_state["travel_chat"].append({"role": "user", "content": voice_input})
                         with st.spinner("Thinking..."):
-                            weather_str = ", ".join([f"{w['date']}: {w['description']}, {w['temp']}°C" for w in st.session_state["trip_details"].get("weather", [])]) if st.session_state["trip_details"].get("weather") else "Weather data not available"
+                            # Same safe access pattern as above
+                            weather_info = st.session_state["trip_details"].get("weather", [])
+                            weather_str = ", ".join([f"{w['date']}: {w['description']}, {w['temp']}°C" for w in weather_info]) if weather_info else "Weather data not available"
+                            
+                            current_destination = st.session_state["trip_details"].get("destination", "your destination")
+                            
                             context = f"""
                             Current itinerary details:
-                            Destination: {st.session_state["trip_details"]["destination"]}
-                            Dates: {st.session_state["trip_details"]["departure_date"]} to {st.session_state["trip_details"]["return_date"]}
-                            Budget: ${st.session_state["trip_details"]["budget"]}
-                            Interests: {st.session_state["trip_details"]["interests"]}
+                            Destination: {current_destination}
+                            Dates: {st.session_state["trip_details"].get("departure_date", "N/A")} to {st.session_state["trip_details"].get("return_date", "N/A")}
+                            Budget: ${st.session_state["trip_details"].get("budget", "N/A")}
+                            Interests: {st.session_state["trip_details"].get("interests", "N/A")}
                             Special Requests: {st.session_state["trip_details"].get("special_requests", "None")}
                             Weather: {weather_str}
                             
