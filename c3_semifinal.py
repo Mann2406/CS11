@@ -341,7 +341,7 @@ def generate_pdf(itinerary, destination, trip_details, attractions, itinerary_nu
         return text.strip()
 
     try:
-        city_images = get_unsplash_images(destination, count=5)
+        city_images = get_unsplash_images(destination, count=7)
         
         # Cover Page
         if city_images:
