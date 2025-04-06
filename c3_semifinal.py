@@ -26,7 +26,6 @@ from geopy.geocoders import Nominatim
 import folium
 from streamlit_folium import st_folium
 import random
-import pyaudio
 
 
 # API Keys (Replace with your actual keys)
@@ -511,40 +510,27 @@ def speak(text):
     except:
         pass
 
+# Voice Command
 def get_voice_input():
+    recognizer = sr.Recognizer()
+    with sr.Microphone() as source:
+        st.info("Listening... Speak now.")
+        recognizer.adjust_for_ambient_noise(source, duration=1)
+        audio = recognizer.listen(source, timeout=5)
     try:
-        # First check if we're in an environment where microphone access is possible
-        if os.environ.get('IS_STREAMLIT_CLOUD', 'false').lower() == 'true':
-            st.warning("Voice input is not available in Streamlit Cloud. Please use text input.")
-            return None
-            
-        try:
-            import pyaudio  # Try importing PyAudio first
-        except ImportError:
-            st.warning("PyAudio is not installed. Please install it with: pip install pyaudio")
-            return None
-        except OSError:
-            st.warning("PyAudio requires system dependencies. On Linux, try: sudo apt-get install portaudio19-dev")
-            return None
-            
-        recognizer = sr.Recognizer()
-        with sr.Microphone() as source:
-            st.info("Listening... Speak now.")
-            recognizer.adjust_for_ambient_noise(source, duration=1)
-            audio = recognizer.listen(source, timeout=5)
-        try:
-            text = recognizer.recognize_google(audio)
-            st.success(f"You said: {text}")
-            return text
-        except sr.UnknownValueError:
-            st.warning("Could not understand audio.")
-            return None
-        except sr.RequestError as e:
-            st.warning(f"Speech recognition error: {str(e)}")
-            return None
+        text = recognizer.recognize_google(audio)
+        st.success(f"You said: {text}")
+        return text
+    except sr.UnknownValueError:
+        st.warning("Could not understand audio.")
+        return None
+    except sr.RequestError as e:
+        st.warning(f"Speech recognition error: {str(e)}")
+        return None
     except Exception as e:
         st.warning(f"Error during voice input: {str(e)}")
         return None
+
 # Parse Itinerary for Map with Random Flow
 def parse_itinerary_for_map(itinerary, destination, memory):
     itinerary_key = f"{destination}_{hash(itinerary)}"
