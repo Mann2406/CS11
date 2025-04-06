@@ -98,8 +98,7 @@ page_bg_img = """
 .stButton>button:hover {
     transform: translateY(-2px);
     box-shadow: 0 7px 14px rgba(0, 0, 0, 0.15);
-    background: linear-gradient(135deg, #ff6a6a 0%, #c94b4b 100%)
-;
+    background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
 }
 .stTextInput>div>div>input,
 .stDateInput>div>div>input,
@@ -315,6 +314,7 @@ def get_youtube_links(query):
     except:
         return ""
 
+# Generate PDF
 def generate_pdf(itinerary, destination, trip_details, attractions, itinerary_number=1):
     class UnicodePDF(FPDF):
         def header(self):
