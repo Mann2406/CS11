@@ -321,23 +321,24 @@ def generate_pdf(itinerary, destination, trip_details, attractions, itinerary_nu
             self.set_font("helvetica", "B", 20)
             self.set_text_color(0, 0, 0)
             self.set_xy(10, 10)
-            self.cell(0, 10, f"Travel Itinerary {itinerary_number}: {destination}", 
-                     new_x="LMARGIN", new_y="NEXT", align="C")
+            self.cell(0, 10, f"Travel Itinerary {itinerary_number}: {destination}", new_x="LMARGIN", new_y="NEXT", align="C")
 
         def footer(self):
             self.set_y(-15)
             self.set_font("helvetica", "I", 8)
             self.set_text_color(100, 100, 100)
-            self.cell(0, 10, f"Page {self.page_no()} | Generated on {datetime.now().strftime('%Y-%m-%d')}", 
-                     new_x="RIGHT", new_y="TOP", align="C")
+            self.cell(0, 10, f"Page {self.page_no()} | Generated on {datetime.now().strftime('%Y-%m-%d')}", new_x="RIGHT", new_y="TOP", align="C")
 
     pdf = UnicodePDF()
     pdf.set_auto_page_break(auto=True, margin=15)
     
+    # Clean the itinerary text before processing
     def clean_text(text):
-        text = re.sub(r'[^\x00-\x7F]+', ' ', text)
-        text = re.sub(r'\s+', ' ', text)
-        return text.strip()
+        # Remove any problematic characters
+        text = re.sub(r'[^\x00-\x7F]+', ' ', text)  # Remove non-ASCII characters
+        text = re.sub(r'\s+', ' ', text)  # Replace multiple spaces with single space
+        text = text.strip()
+        return text
 
     try:
         city_images = get_unsplash_images(destination, count=5)
@@ -356,8 +357,8 @@ def generate_pdf(itinerary, destination, trip_details, attractions, itinerary_nu
                 pdf.set_text_color(0, 51, 102)
                 pdf.cell(0, 10, "A Journey Awaits", new_x="LMARGIN", new_y="NEXT", align="C")
                 os.remove(img_path)
-            except Exception:
-                pass
+            except Exception as e:
+                st.warning(f"Couldn't add cover image: {str(e)}")
 
         # Trip Details
         pdf.add_page()
@@ -365,11 +366,9 @@ def generate_pdf(itinerary, destination, trip_details, attractions, itinerary_nu
         pdf.cell(0, 10, "Trip Overview", new_x="LMARGIN", new_y="NEXT")
         pdf.set_font("helvetica", "", 11)
         pdf.cell(0, 8, f"Duration: {trip_details['duration']} days", new_x="LMARGIN", new_y="NEXT")
-        pdf.cell(0, 8, f"Dates: {trip_details['departure_date']} to {trip_details['return_date']}", 
-                 new_x="LMARGIN", new_y="NEXT")
+        pdf.cell(0, 8, f"Dates: {trip_details['departure_date']} to {trip_details['return_date']}", new_x="LMARGIN", new_y="NEXT")
         pdf.cell(0, 8, f"Budget: ${trip_details['budget']}", new_x="LMARGIN", new_y="NEXT")
-        pdf.cell(0, 8, f"Interests: {clean_text(trip_details['interests'])}", 
-                 new_x="LMARGIN", new_y="NEXT")
+        pdf.cell(0, 8, f"Interests: {clean_text(trip_details['interests'])}", new_x="LMARGIN", new_y="NEXT")
         
         # Attractions
         if attractions:
@@ -380,23 +379,20 @@ def generate_pdf(itinerary, destination, trip_details, attractions, itinerary_nu
                 pdf.set_font("helvetica", "B", 12)
                 pdf.cell(0, 8, clean_text(attraction['name']), new_x="LMARGIN", new_y="NEXT")
                 pdf.set_font("helvetica", "", 10)
-                pdf.cell(0, 6, clean_text(f"Type: {attraction['type']} | Rating: {attraction['rating']}"), 
-                         new_x="LMARGIN", new_y="NEXT")
-                pdf.cell(0, 6, clean_text(f"Address: {attraction['address']}"), 
-                         new_x="LMARGIN", new_y="NEXT")
+                pdf.cell(0, 6, clean_text(f"Type: {attraction['type']} | Rating: {attraction['rating']}"), new_x="LMARGIN", new_y="NEXT")
+                pdf.cell(0, 6, clean_text(f"Address: {attraction['address']}"), new_x="LMARGIN", new_y="NEXT")
                 if attraction.get('google_url'):
                     pdf.set_text_color(0, 0, 255)
-                    pdf.cell(0, 6, "Google Maps", new_x="LMARGIN", new_y="NEXT", 
-                             link=attraction['google_url'])
+                    pdf.cell(0, 6, "Google Maps", new_x="LMARGIN", new_y="NEXT", link=attraction['google_url'])
                     pdf.set_text_color(0, 0, 0)
                 pdf.ln(8)
 
         # Itinerary
         pdf.add_page()
         pdf.set_font("helvetica", "B", 16)
-        pdf.cell(0, 10, f"Your Personalized Itinerary {itinerary_number}", 
-                 new_x="LMARGIN", new_y="NEXT")
+        pdf.cell(0, 10, f"Your Personalized Itinerary {itinerary_number}", new_x="LMARGIN", new_y="NEXT")
         
+        # Clean and process the itinerary text
         clean_itinerary = unicodedata.normalize('NFKD', itinerary).encode('ascii', 'ignore').decode('ascii')
         paragraphs = [p for p in clean_itinerary.split('\n\n') if p.strip()]
         
@@ -422,34 +418,37 @@ def generate_pdf(itinerary, destination, trip_details, attractions, itinerary_nu
                         img.save(img_path)
                         pdf.image(img_path, x=(210-60)/2, w=60, h=60)
                         pdf.set_font("helvetica", "I", 8)
-                        pdf.cell(0, 5, clean_text(f"Scene {image_index}: {destination}"), 
-                                 new_x="LMARGIN", new_y="NEXT", align="C")
+                        pdf.cell(0, 5, clean_text(f"Scene {image_index}: {destination}"), new_x="LMARGIN", new_y="NEXT", align="C")
                         os.remove(img_path)
                         image_index += 1
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        st.warning(f"Couldn't add image {image_index}: {str(e)}")
                 
                 lines = lines[1:]
             
             pdf.set_font("helvetica", "", 11)
             for line in lines:
                 line = clean_text(re.sub(r'\*\*(.*?)\*\*', r'\1', line))
-                if '<a href="' in line:
-                    parts = line.split('<a href="')
-                    for i, part in enumerate(parts):
-                        if i == 0:
-                            pdf.multi_cell(0, 8, clean_text(part))
-                        else:
-                            url_part, rest = part.split('">', 1)
-                            text_part, remainder = rest.split('</a>', 1)
-                            pdf.set_text_color(0, 0, 255)
-                            pdf.multi_cell(0, 8, clean_text(text_part), link=url_part)
-                            pdf.set_text_color(0, 0, 0)
-                            pdf.multi_cell(0, 8, clean_text(remainder))
-                elif line.startswith("- "):
-                    pdf.multi_cell(0, 8, clean_text(f"- {line.lstrip('- ').strip()}"))
-                else:
-                    pdf.multi_cell(0, 8, clean_text(line.strip()))
+                try:
+                    if '<a href="' in line:
+                        parts = line.split('<a href="')
+                        for i, part in enumerate(parts):
+                            if i == 0:
+                                pdf.multi_cell(0, 8, clean_text(part))
+                            else:
+                                url_part, rest = part.split('">', 1)
+                                text_part, remainder = rest.split('</a>', 1)
+                                pdf.set_text_color(0, 0, 255)
+                                pdf.multi_cell(0, 8, clean_text(text_part), link=url_part)
+                                pdf.set_text_color(0, 0, 0)
+                                pdf.multi_cell(0, 8, clean_text(remainder))
+                    elif line.startswith("- "):
+                        pdf.multi_cell(0, 8, clean_text(f"- {line.lstrip('- ').strip()}"))
+                    else:
+                        pdf.multi_cell(0, 8, clean_text(line.strip()))
+                except Exception as e:
+                    st.warning(f"Couldn't add line: {line[:50]}... Error: {str(e)}")
+                    continue
                     
             pdf.ln(5)
 
@@ -458,7 +457,8 @@ def generate_pdf(itinerary, destination, trip_details, attractions, itinerary_nu
             pdf.output(pdf_path)
         return pdf_path
         
-    except Exception:
+    except Exception as e:
+        st.error(f"Failed to generate PDF: {str(e)}")
         return None
 
 # Chat Chain
