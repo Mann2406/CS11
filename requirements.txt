@@ -15,4 +15,4 @@ plotly
 pandas
 streamlit-lottie
 streamlit-extras
-pyaudio
+PyAudio
